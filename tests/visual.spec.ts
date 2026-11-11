@@ -1,0 +1,44 @@
+import {test,expect} from '@playwright/test';
+import path from 'node:path';
+test('capture baseline and integrated responsive views',async({page},info)=>{
+ await page.goto('/?demo=1');
+ await page.getByRole('heading',{name:'VELVET RUCHED MINI DRESS',exact:true}).waitFor();
+ await page.getByRole('button',{name:'REFERENCE LAYOUT',exact:true}).click();
+ await expect(page.locator('.original-rec')).toBeVisible();
+ await page.screenshot({path:path.join('screenshots',`${info.project.name}-baseline.jpg`)});
+ await page.getByRole('button',{name:'SHOW CONCEPT',exact:true}).click();
+ await expect(page.getByRole('tab',{name:'PRE-OWNED PICKS',exact:true})).toBeVisible();
+ await page.screenshot({path:path.join('screenshots',`${info.project.name}-product.jpg`)});
+ await page.locator('#complete-your-look').scrollIntoViewIfNeeded();
+ await page.screenshot({path:path.join('screenshots',`${info.project.name}-discovery.jpg`)});
+ await page.getByRole('button',{name:'GOLD',exact:true}).click();
+ await expect(page.locator('.tier-heading')).toContainText('700');
+ await expect(page.locator('.partner:not(.locked)')).toHaveCount(11);
+ await page.screenshot({path:path.join('screenshots',`${info.project.name}-rewards.jpg`)});
+});
+test('real featured listing has actual source photograph and attribution',async({page},info)=>{
+ await page.goto('/?demo=1#view=product&product=pre-0');
+ await expect(page.getByRole('heading',{name:'ZARA BLACK TEXTURED MINI DRESS WITH RHINESTONE BUTTONS',exact:true})).toBeVisible();
+ await expect(page.locator('.price')).toHaveText('$ 30.00');
+ await expect(page.locator('.listing-source')).toContainText('Like new');
+ await expect(page.getByRole('link',{name:'VIEW ORIGINAL LISTING ↗',exact:true})).toHaveAttribute('href','https://www.zara.com/us/en/preowned-resell/product-detail/2427385');
+ const image=page.locator('.gallery .sourced-photo').first();
+ await expect(image).toHaveJSProperty('complete',true);
+ await expect.poll(()=>image.evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0);
+ await page.screenshot({path:path.join('screenshots',`${info.project.name}-real-preowned.jpg`)});
+});
+test('pieces appear before compact rewards and use matching catalog imagery',async({page},info)=>{
+ await page.goto('/?demo=1');
+ const track=page.locator('.rec-track');const strip=page.locator('.compact-rewards');
+ expect(await track.evaluate((el)=>!!(el.compareDocumentPosition(document.querySelector('.compact-rewards')!)&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+ expect((await strip.boundingBox())!.height).toBeLessThan(85);
+ await expect(page.getByText('Good pieces.',{exact:true})).toHaveCount(0);
+ await expect(track.locator('img').first()).toHaveAttribute('src',/63f2a24c04166dd721ec504c/);
+ await expect.poll(()=>track.locator('img').first().evaluate((img:HTMLImageElement)=>img.naturalWidth)).toBeGreaterThan(0);
+ await page.getByRole('button',{name:'DISCOVERY ↓',exact:true}).click();
+ await expect(page.locator('#complete-your-look')).toBeVisible();
+ await track.scrollIntoViewIfNeeded();
+ await page.screenshot({path:path.join('screenshots',`${info.project.name}-compact-discovery.jpg`)});
+ await strip.click();
+ await expect(page).toHaveURL(/view=rewards/);
+});
